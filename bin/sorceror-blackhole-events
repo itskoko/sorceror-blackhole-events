@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+require_relative '../config/boot'
+
+if defined?(JRUBY_VERSION)
+  Sorceror::Worker::JRuby.run
+else
+  Sorceror::Worker::MRI.run
+end
