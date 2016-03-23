@@ -4,6 +4,10 @@ module Sorceror
       @raw = raw
     end
 
+    def at
+      parsed['at']
+    end
+
     def attributes
       parsed['attributes']
     end
@@ -29,12 +33,13 @@ module Sorceror
     end
 
     def as_sequel
-      {
+      attrs = {
         id: id,
         name: name,
         type: type,
         attributes: Sequel.pg_json(attributes)
       }
+      attrs.merge(at: Time.at(at)) if at
     end
   end
 end

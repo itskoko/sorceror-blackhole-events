@@ -6,6 +6,8 @@ module Sorceror
       self.new(name).create
     end
 
+    @@created = false
+
     def initialize(table_name)
       @table_name = table_name
     end
@@ -21,30 +23,42 @@ module Sorceror
     def create!
       Redis::Lock.new(table_name.to_s).synchronize do
         ensure_created
+        @@created = true
       end
     end
 
     def needs_creation?
-      !DB.tables.include?(table_name.to_sym)
+      !@@created
     end
 
     def ensure_created
-      DB.create_table?(table_name) do
-        primary_key :seq
+      if !DB.tables.include?(table_name.to_sym)
+        DB.create_table?(table_name) do
+          primary_key :seq
+        end
 
-        column :id, :char, size: 48
-        column :name, :text
-        column :attributes, :json
-        column :type, :text
+        Sorceror.info "[sorceror-blackhole] Creating table #{table_name}"
       end
 
-      DB.alter_table(table_name) do
-        add_index :name
-        add_index :type
-        add_index :id
-      end
+      (columns.keys - Sorceror::DB[table_name].columns).each do |column|
+        column_args = columns[column]
+        DB.alter_table(table_name) do
+          add_column column, *column_args
 
-      Sorceror.info "[sorceror-blackhole] Created table #{table_name}"
+          add_index column
+        end
+        Sorceror.info "[sorceror-blackhole] Adding column #{column}"
+      end
+    end
+
+    def columns
+      {
+        id:         [:char, { size: 48 }],
+        at:         [:timestamptz],
+        name:       [:text],
+        attributes: [:json],
+        type:       [:text]
+      }
     end
   end
 end
